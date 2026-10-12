@@ -1,0 +1,409 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1264,
+        112
+      ],
+      "id": "8fd63a20-69c2-430e-a141-a43073469efb",
+      "name": "Telegram Trigger"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message.text }}",
+        "options": {
+          "systemMessage": "=Ты — ИИ-агент внутри n8n.\nВопросы, которые ты изначально должен задать пользователю:\n1. Чему бы ты хотел научиться?\n2. Какой уровень знаний имеешь сейчас по этой теме?\n\nОпираясь на ответ пользователя, тебе необходимо сформировать контент-план обучения в виде списка 5 тем для изучения. Каждая тема содержит в себе перечень основных понятий.\nПропиши темы и понятия в таком виде:\nТема 1: [понятие 1, понятие 2, понятие 3...]\nТема 2: [понятие 1, понятие 2, понятие 3...]\nТема 3: [понятие 1, понятие 2, понятие 3...]\n\nПосле того как план обучения готов, ты получаешь подтверждение от пользователя, и далее присылаешь пользователю небольшие посты, освещающие понятия тем. Ты берешь каждый пункт составленного плана в порядке очереди и формируешь запрос в формате: tavily(query=\"...\"), где в кавычках — краткий поисковый запрос из твоего плана.\nНикакого другого текста.\n\nОтправляй посты без повторов. Если тема уже была, не присылай пост на эту тему снова.\nПосле полного прохождения всех запланированных тем спроси, что пользователь хочет изучать дальше.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -976,
+        112
+      ],
+      "id": "3d48b94d-723e-4b8e-bd99-ee0fbf94ce70",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "GigaChat/GigaChat-2-Max",
+          "mode": "list",
+          "cachedResultName": "GigaChat/GigaChat-2-Max"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -1056,
+        320
+      ],
+      "id": "cff6210b-3a31-46ae-b764-6d8bc9acae16",
+      "name": "OpenAI Chat Model"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tavily.com/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer REPLACE_WITH_TAVILY_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ query: $json.output, search_depth: \"basic\", include_answer: true }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        48,
+        0
+      ],
+      "id": "0bad286c-4b5f-43fa-84f6-a871d11beea6",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.user_message }}",
+        "options": {
+          "systemMessage": "={{ $json.system_message }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        240,
+        0
+      ],
+      "id": "7bcb8b60-f5b7-430e-84a9-516eef4523a5",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "GigaChat/GigaChat-2-Max",
+          "mode": "list",
+          "cachedResultName": "GigaChat/GigaChat-2-Max"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        192
+      ],
+      "id": "8501fc34-c69b-41f8-8786-3bf6d960c066",
+      "name": "OpenAI Chat Model1"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        656,
+        176
+      ],
+      "id": "f5a34439-8d4a-4bdb-a535-77434db2754f",
+      "name": "Send a text message"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "27784d6d-8172-4901-bb98-53c60ed1a2e4",
+              "leftValue": "={{ $json.hasTavilyFormat }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -336,
+        112
+      ],
+      "id": "7151b0a8-f1f6-41ff-a24b-3ac709211f01",
+      "name": "If generate_post"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  const inputData = $input.first().json.output;\n  \n  // Проверяем наличие формата tavily(query=\"...\")\n  item.json.hasTavilyFormat = /tavily\\s*\\(\\s*query\\s*=\\s*[\"'][^\"']+[\"']\\s*\\)/i.test(inputData);\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -576,
+        112
+      ],
+      "id": "8c1923d0-c3d0-47da-bb17-0ff1081e49e6",
+      "name": "Code check_format"
+    },
+    {
+      "parameters": {
+        "jsCode": "const outputData = $input.first().json.output\n// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  // Добавляем результат парсинга как новое поле\n  item.json.parsedOutput = outputData;\n  \n  // Или парсим в зависимости от формата outputData\n  if (typeof outputData === 'string') {\n    try {\n      // Пытаемся парсить JSON строку\n      item.json.parsedJson = JSON.parse(outputData);\n    } catch (e) {\n      // Если не JSON, сохраняем как строку\n      item.json.parsedJson = null;\n      item.json.outputString = outputData;\n    }\n  } else if (typeof outputData === 'object' && outputData !== null) {\n    // Если уже объект, используем как есть\n    item.json.parsedJson = outputData;\n  }\n  \n  // Добавляем поле с типом данных\n  item.json.outputType = typeof outputData;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        416
+      ],
+      "id": "9daa1fff-ff12-487e-8c70-e4fb57501d44",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.message.chat.id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -896,
+        320
+      ],
+      "id": "51d3f3c6-76c0-468e-8afc-3f5ce9113ce5",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.outputString }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        256,
+        416
+      ],
+      "id": "87e3bf6a-a1c8-487e-b4a0-3f4d3e80866d",
+      "name": "Send a text message1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Извлекаем запрос из строки формата tavily(query=\"...\")\nconst inputString = $input.first().json.output;\n\nfunction extractQuery(input) {\n    // Удаляем пробелы в начале и конце\n    const trimmed = input.trim();\n    \n    // Вариант 1: Полный формат tavily(query=\"...\")\n    const tavilyRegex = /tavily\\(query\\s*=\\s*\"([^\"]+)\"\\)/i;\n    let match = trimmed.match(tavilyRegex);\n    \n    if (match && match[1]) {\n        return match[1].trim();\n    }\n  \n    // Вариант 2: Без tavily, но с query=\"...\"\n    const queryRegex = /query\\s*=\\s*\"([^\"]+)\"/i;\n    match = trimmed.match(queryRegex);\n    \n    if (match && match[1]) {\n        return match[1].trim();\n    }\nreturn trimmed;\n}\nconst extractedQuery = extractQuery(inputString);\n\n// Возвращаем ПРОСТУЮ СТРОКУ с запросом (без слова query и скобок)\nreturn [{ \n     json: {\n       output: extractedQuery\n     }\n }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        0
+      ],
+      "id": "0d7d9725-bdd4-4355-a48e-dd1159d25a3d",
+      "name": "Code rename"
+    },
+    {
+      "parameters": {
+        "jsCode": "const tavilyData = $input.first().json;\n\n// System message - задаем роль\nconst systemMessage = `Ты ИИ-агент внутри n8n, помощник по анализу поисковых результатов. Проанализируй предоставленные результаты поиска по запросу и составь структурированный ответ для пользователя.\nФормат ответа:\n- Естественный текст с абзацами\n- Можно использовать маркированные списки для перечислений\n- Без технических деталей, которые не были в источниках`;\n\n// User message - передаем данные и задачу\nconst userMessage = `\nЗАПРОС ПОЛЬЗОВАТЕЛЯ: \"${tavilyData.query}\"\n\nРЕЗУЛЬТАТЫ ПОИСКА (${tavilyData.results.length} источников, отсортированы по релевантности):\n${tavilyData.results.map((result, index) => `\n=== ИСТОЧНИК ${index + 1} ===\nОЦЕНКА РЕЛЕВАНТНОСТИ TAVILY (не вероятность достоверности): ${result.score}\nЗАГОЛОВОК: ${result.title}\nURL: ${result.url}\nСОДЕРЖАНИЕ: ${result.content}\n`).join('\\n')}\n\nИНСТРУКЦИЯ:\n1. Проанализируй каждый результат (всего ${tavilyData.results.length} источников)\n2. Извлеки ключевую информацию из поля 'content' каждого результата\n3. Создай подробный, но понятный ответ на русском языке\n4. Структурируй информацию логически\n5. Учитывай релевантность (score) каждого источника\n6. Используй информацию только из предоставленных данных\n\nНачни анализ и дай полный ответ.\n`;\n\nreturn [{\n  json: {\n    system_message: systemMessage,\n    user_message: userMessage,\n    query: tavilyData.query,\n    results_count: tavilyData.results.length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        144,
+        -160
+      ],
+      "id": "e92dfbdf-3329-4751-96a3-8e9ca0c6cb44",
+      "name": "Code in JavaScript1"
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code check_format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If generate_post": {
+      "main": [
+        [
+          {
+            "node": "Code rename",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code check_format": {
+      "main": [
+        [
+          {
+            "node": "If generate_post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        []
+      ]
+    },
+    "Code rename": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "name": "Telegram AI Mentor — portfolio prototype",
+  "active": false,
+  "pinData": {}
+}
